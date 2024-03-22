@@ -1,0 +1,18 @@
+# Use the Google style in this project.
+BasedOnStyle: Mozilla
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterNamespace: false
+    AfterClass: false
+    AfterStruct: false
+    AfterFunction: false
+    SplitEmptyFunction: false
+    BeforeCatch: true
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
