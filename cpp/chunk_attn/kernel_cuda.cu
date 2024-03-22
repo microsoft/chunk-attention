@@ -245,9 +245,7 @@ __inline__ __device__ void matrix_multiply_gAB_sC(const scalar_t* __restrict__ g
                                                   scalar_t* __restrict__ sB,
                                                   float* __restrict__ sC,
                                                   uint32_t sC_stride) {
-    constexpr int thread_num = 128;
     constexpr int warp_size = 32;
-    constexpr int warp_num = 128 / warp_size;
     constexpr int m_warp_size = PartitionCal<M, N>::get_m_warp_size();
     constexpr int n_warp_size = PartitionCal<M, N>::get_n_warp_size();
     const int thread_idx = threadIdx.x;
@@ -255,7 +253,6 @@ __inline__ __device__ void matrix_multiply_gAB_sC(const scalar_t* __restrict__ g
     const int warp_on_m =
       m_warp_size == n_warp_size ? warp_idx / m_warp_size : warp_idx % m_warp_size;
     const int warp_on_n = warp_idx % n_warp_size;
-    const int lane_idx = thread_idx % warp_size;
 
     constexpr int mma_m = 16;
     constexpr int mma_n = 16;
@@ -717,13 +714,6 @@ __inline__ __device__ void warp_vect_mul_col_major_matrix(const scalar_t *vec, c
         result[i * warp_size + lane_idx] = result[i * warp_size + lane_idx] * scale + TypeTraits<scalar_t>::float_to_scalar(reg_result[i]);
     }
     __syncwarp();
-
-    //    if (blockIdx.y == 0) {
-    //        print_matrix<scalar_t, 1, K>(0, vec, K);
-    //        print_matrix<scalar_t, K, N>(0, shared_mat, padding_n);
-    //        print_matrix<scalar_t, K, N>(0, mat, N);
-    //        print_matrix<scalar_t, 1, N>(0, result, padding_n);
-    //    }
 }
 
 template<typename scalar_t, int n_seqs, int chunk_size, int d_head>
@@ -774,9 +764,6 @@ __global__ void attn_chunk_first_kernel(
     scalar_t* shared_q = reinterpret_cast<scalar_t*>(smem);
     scalar_t* shared_k = shared_q + n_seqs * padded_head_dim;
     float* shared_weight = reinterpret_cast<float*>(shared_k + chunk_size * padded_head_dim);
-    //    __shared__ scalar_t shared_q[seq_length_ * padded_head_dim];
-    //    __shared__ scalar_t shared_k[chunk_size * padded_head_dim];
-    //    __shared__ float shared_weight[seq_length_ * padded_chunk_size];
     scalar_t* shared_v = shared_k;
     scalar_t* shared_half_score = shared_q;
     float* shared_output = reinterpret_cast<float*>(smem);
@@ -784,9 +771,6 @@ __global__ void attn_chunk_first_kernel(
     matrix_multiply_gAB_sC<scalar_t, n_seqs, chunk_size, d_head>(
       q, n_heads * d_head, shared_q, k, shared_k, shared_weight, padded_chunk_size);
 
-    // print_matrix<half, seq_length, d_head>("q", 5, 4, q, n_heads * d_head);
-    // print_matrix<half , chunk_size, d_head>("k", 5, 4, k, d_head);
-    // print_matrix<float, seq_length, chunk_size>("score", 5, 4, shared_weight, padded_chunk_size);
 
     // compute
 #pragma unroll
@@ -857,19 +841,13 @@ __global__ void attn_chunk_first_kernel_v2(
     scalar_t* shared_q = reinterpret_cast<scalar_t*>(smem);
     scalar_t* shared_k = shared_q + n_seqs * padded_head_dim;
     float* shared_weight = reinterpret_cast<float*>(shared_k + chunk_size * padded_head_dim);
-    //    __shared__ scalar_t shared_q[seq_length_ * padded_head_dim];
-    //    __shared__ scalar_t shared_k[chunk_size * padded_head_dim];
-    //    __shared__ float shared_weight[seq_length_ * padded_chunk_size];
+
     scalar_t* shared_half_score = shared_q;
     scalar_t* shared_v = shared_half_score + n_seqs * padded_chunk_size;
     scalar_t* shared_output = shared_v + chunk_size * padded_head_dim;
     // share v with k
     matrix_multiply_gAB_sC<scalar_t, n_seqs, chunk_size, d_head>(
       q, n_heads * d_head, shared_q, k, shared_k, shared_weight, padded_chunk_size);
-
-    // print_matrix<half, seq_length, d_head>("q", 5, 4, q, n_heads * d_head);
-    // print_matrix<half , chunk_size, d_head>("k", 5, 4, k, d_head);
-    // print_matrix<float, seq_length, chunk_size>("score", 5, 4, shared_weight, padded_chunk_size);
 
     // compute
 #pragma unroll
@@ -929,7 +907,6 @@ __global__ void attn_seq_first_kernel(
     constexpr uint32_t warp_num = thread_num / warp_size;
     constexpr uint32_t tokens_per_thread = chunk_size / warp_size;
     constexpr uint32_t dim_per_thread = d_head / warp_size;
-    constexpr uint32_t load_vec_length = 16 / sizeof(half);
     constexpr uint32_t padding_head_dim = d_head + 16 / sizeof(scalar_t);
 
     // static_assert(chunk_size % warp_size == 0, "chunk_size must be divided by warp_size");
@@ -982,8 +959,6 @@ __global__ void attn_seq_first_kernel(
         scalar_t* shared_output_chunk = shared_output + wrap_idx * padding_head_dim;
         scalar_t* shared_chunk_score = shared_score + wrap_idx * chunk_size;
 
-        // printf("chunk_idx %d\n", chunk_idx);
-
         // merge existing result
         if (chunk_idx < n_shared_chunks) {
             int result_offset = offsets[chunk_idx];
@@ -997,18 +972,14 @@ __global__ void attn_seq_first_kernel(
             scalar_t* cached_qkv_result = attns + attn_offset;
 
             float new_score_max = fmax(score_max, cached_max);
-            //            float cached_scale = expf(cached_max - new_score_max);
             float cached_scale =
               __shfl_sync(0xffffffff, lane_idx == 0 ? expf(cached_max - new_score_max) : 0, 0);
-            //            float scale = expf(score_max_ - new_score_max);
             float scale =
               __shfl_sync(0xffffffff, lane_idx == 0 ? expf(score_max - new_score_max) : 0, 0);
             score_max = new_score_max;
             score_sum = cached_sum * cached_scale + score_sum * scale;
-            //            print_matrix<scalar_t, 1, d_head>(0, cached_qkv_result, d_head);
             warp_vector_merge<scalar_t, d_head>(
               shared_output_chunk, cached_qkv_result, scale, cached_scale);
-            //            print_matrix<scalar_t, 1, d_head>(0, shared_output_chunk, d_head);
             continue;
         }
 
@@ -1018,20 +989,7 @@ __global__ void attn_seq_first_kernel(
           reinterpret_cast<scalar_t*>(values[chunk_idx]) + kv_row_offset; // [chunk_size, d_head]
 
         float chunk_score[tokens_per_thread] = { 0 };
-        // #pragma unroll
-        //         for (int k = 0; k < d_head / load_vec_length; k += 1) {
-        ////            k = (k + lane_idx) & ((d_head / load_vec_length) - 1);
-        //            vector_t q_vec = reinterpret_cast<const vector_t*>(shared_q)[k];
-        //            // compute two token each thread
-        // #pragma unroll
-        //            for (int j = 0; j < tokens_per_thread; j++) {
-        //                chunk_score[j] += q_vec.dot(reinterpret_cast<const vector_t*>(
-        //                                    g_k + (j * warp_size + lane_idx) * d_head)[k]) *
-        //                                  dim_scale;
-        //            }
-        //        }
-        //        warp_vect_mul_raw_major_matrix<scalar_t, chunk_size, d_head>(
-        //          shared_q, g_k, shared_kv, chunk_score, dim_scale);
+
         warp_vect_mul_raw_major_matrix_v2<scalar_t, chunk_size, d_head>(
           shared_q, g_k, shared_kv, chunk_score, dim_scale);
         if (i == (chunk_num - 1) && last_chunk_unmask_token != 0) {
@@ -1076,19 +1034,7 @@ __global__ void attn_seq_first_kernel(
           __shfl_sync(0xffffffff, lane_idx == 0 ? expf(score_max - chunk_score_max) : 0, 0);
         score_max = chunk_score_max;
         score_sum = score_sum * score_scale + chunk_score_sum;
-        // compute v
-        // #pragma unroll
-        //         for (int j = 0; j < dim_per_thread; j++) {
-        //             float chunk_output_dim = 0;
-        // #pragma unroll
-        //             for (int k = 0; k < chunk_size; k += load_vec_length) {
-        //                 chunk_output_dim += vector_dot<half, load_vec_length, 1, d_head>(
-        //                   shared_chunk_score + k, g_v + k * d_head + j * warp_size + lane_idx);
-        //             }
-        //             shared_output_chunk[j * warp_size + lane_idx] =
-        //               __float2half(chunk_output_dim) +
-        //               __float2half(score_scale) * shared_output_chunk[j * warp_size + lane_idx];
-        //         }
+
         warp_vect_mul_col_major_matrix<scalar_t, d_head, chunk_size>(
           shared_chunk_score, g_v, shared_kv, shared_output_chunk, score_scale);
         //        __syncwarp();
@@ -1472,7 +1418,6 @@ KernelContext& refresh_kernel_context(KernelContext& context,
     nvtxRangePushA("transfer keys values");
     torch::Tensor keys_values_new = keys_values_host.to(device, torch::kInt64, true);
     nvtxRangePop();
-    assert(context.keys_values_new.size(1) == n_chunks);
 
     nvtxRangePushA("transfer seq_n_tokens_new");
     torch::Tensor seq_n_tokens_new = seq_n_tokens_host.to(device, torch::kInt32, true);
