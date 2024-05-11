@@ -3,7 +3,7 @@
 
 namespace GPT {
 
-Chunk::Chunk(int capacity, int n_heads, int d_head, torch::TensorOptions& options) {
+Chunk::Chunk(int capacity, int n_heads, int d_head, int n_layers, torch::TensorOptions& options) {
     key_ = torch::zeros({ n_heads, capacity, d_head }, options);
     value_ = torch::zeros({ n_heads, capacity, d_head }, options);
     init(key_, value_);

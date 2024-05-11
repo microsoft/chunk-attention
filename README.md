@@ -82,7 +82,7 @@ MKL CMake options(default*):
 
 ## Tips
 
-### Using PyTorch Context Manager
+**Using PyTorch Context Manager**
 
 PyTorch has a context manager which can take care of the device transfer automatically. ChunkAttn is compatible with this context manager.
 
@@ -103,13 +103,13 @@ In C++, you can use `c10::DeviceGuard` to switch the device. It is a RAII guard 
 }
 ```
 
-### Add nvcc to PATH if not already
+**Add nvcc to PATH if not already**
 
 ```bash
 export PATH="/usr/local/cuda/bin:$PATH"
 ```
 
-### Change HuggingFace Cache Path
+**Change HuggingFace Cache Path**
 
 ```bash
 export TRANSFORMERS_CACHE=/mnt/huggingface/

@@ -12,13 +12,14 @@ class ChunkAllocator {
                    int chunk_size,
                    int n_heads,
                    int d_head,
+                   int n_layers,
                    torch::TensorOptions& options);
     ChunkAllocator(ChunkAllocator const& other) = delete;
     virtual ~ChunkAllocator() = default;
 
     Chunk* allocate();
     Chunk* allocate(Chunk& other);
-    Chunk* allocate(const std::vector<int>& ids, torch::Tensor& k, torch::Tensor& v, int start, int end);
+    Chunk* allocate(const std::vector<int>& ids, int start, int end);
     Chunk* allocate(torch::Tensor& k, torch::Tensor& v, int start, int end);
     void free(Chunk* chunk);
 
@@ -30,10 +31,9 @@ class ChunkAllocator {
     int chunk_size_;
     int n_heads_;
     int d_head_;
+    int n_layers_;
     torch::TensorOptions t_options_;
 
-    torch::Tensor key_storage_;
-    torch::Tensor value_storage_;
     std::list<std::shared_ptr<Chunk>> chunks_; // all reserved chunks
     std::set<Chunk*> free_set_;
 

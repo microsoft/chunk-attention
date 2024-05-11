@@ -9,11 +9,13 @@ ChunkAllocator::ChunkAllocator(int memory_mb,
                                int chunk_size,
                                int n_heads,
                                int d_head,
+                               int n_layers,
                                torch::TensorOptions& options)
   : memory_mb_(memory_mb)
   , chunk_size_(chunk_size)
   , n_heads_(n_heads)
   , d_head_(d_head)
+  , n_layers_(n_layers)
   , t_options_(options)
   , peak_memory_allocated_(0) {
     float size_of_data = 4;
@@ -33,23 +35,14 @@ ChunkAllocator::ChunkAllocator(int memory_mb,
     chunk_kv_bytes_ = chunk_kv_elements * size_of_data;
     chunk_total_bytes_ = chunk_kv_bytes_ * 2; // 2 for key and value
     max_chunks_ = std::floor(float(memory_mb_) * 1024 * 1024 / chunk_total_bytes_);
-    LOG_INFO(
-      "ChunkAllocator: memory capacity {} MB, each chunk requires {} KB, reserved chunks {}",
-      memory_mb,
-      chunk_total_bytes_ / 1024,
-      max_chunks_);
+    LOG_INFO("ChunkAllocator: memory capacity {} MB, each chunk requires {} KB, reserved chunks {}",
+             memory_mb,
+             chunk_total_bytes_ / 1024,
+             max_chunks_);
 
-    // reserve chunks
-    key_storage_ = torch::empty({ chunk_kv_elements * max_chunks_ }, t_options_);
-    value_storage_ = torch::empty({ chunk_kv_elements * max_chunks_ }, t_options_);
-    auto keys = key_storage_.chunk(max_chunks_);
-    auto values = value_storage_.chunk(max_chunks_);
+    // pre allocate chunks
     for (int i = 0; i < max_chunks_; ++i) {
-        auto key = keys[i];
-        key = key.view({ n_heads_, chunk_size_, d_head_ });
-        auto value = values[i];
-        value = value.view({ n_heads_, chunk_size_, d_head_ });
-        auto chunk = std::make_shared<Chunk>(key, value);
+        auto chunk = std::make_shared<Chunk>(chunk_size_, n_heads_, d_head_, n_layers_, t_options_);
         chunks_.push_back(chunk);
         free_set_.insert(chunk.get());
     }
@@ -73,7 +66,6 @@ Chunk* ChunkAllocator::allocate() {
                   max_chunks_);
         throw std::runtime_error("ChunkAllocator: capacity reached");
     } else {
-        throw std::runtime_error("on demand allocation is not implemented yet");
         auto chunk = std::make_shared<Chunk>(chunk_size_, n_heads_, d_head_, t_options_);
         chunks_.push_back(chunk);
         int64_t used_memory = int64_t(chunks_.size() - free_set_.size()) * chunk_total_bytes_;
@@ -91,12 +83,10 @@ Chunk* ChunkAllocator::allocate(Chunk& other) {
 }
 
 Chunk* ChunkAllocator::allocate(const std::vector<int>& ids,
-                                torch::Tensor& k,
-                                torch::Tensor& v,
                                 int start,
                                 int end) {
     Chunk* chunk = allocate();
-    chunk->append_tokens(ids, k, v, start, end);
+    chunk->append_tokens(ids, start, end);
     return chunk;
 }
 

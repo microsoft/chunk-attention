@@ -8,7 +8,7 @@ namespace GPT {
 
 class Chunk {
   public:
-    Chunk(int capacity, int n_heads, int d_head, torch::TensorOptions& options);
+    Chunk(int capacity, int n_heads, int d_head, int n_layers, torch::TensorOptions& options);
     Chunk(torch::Tensor& key_storage, torch::Tensor& value_storage);
     Chunk(Chunk const& other);
     virtual ~Chunk() = default;

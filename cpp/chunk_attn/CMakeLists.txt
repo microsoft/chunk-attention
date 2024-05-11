@@ -8,6 +8,8 @@ target_sources(chunk_attn_lib PRIVATE
         "chunk.cpp"
         "chunk_allocator.h"
         "chunk_allocator.cpp"
+        "kv_cache.h"
+        "kv_cache.cpp"
         "attention.h"
         "attention.cpp"
         "task_executor.h"
