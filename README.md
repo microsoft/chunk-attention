@@ -63,12 +63,6 @@ cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=OFF 
 cmake --build build
 
 python tests/test_chunk_attn_cuda.py
-
-
-pip install mypy xformers vllm
-
-
-
 ```
 
 ### CPU Kernel (BLAS=MKL) [Experimental]
