@@ -41,12 +41,15 @@ with ModelHost(model, kv_caches, max_batch_size=16) as host:
 
 ### GPU Kernel (BLAS=CUDA)
 
-During the writing of the paper, CUDA 11.8 was used. Subsequently, many packages released new versions. The latest configuration we have verified on Ubuntu 22.04 (kernel version 6.5.0) is: CUDA 12.4 and PyTorch 2.5.1. If you are using other versions, you may need certain changes in order to compile successfully, and you may get slightly different performance numbers.
+During the writing of the paper, CUDA 11.8 was used. Subsequently, many packages released new versions. The latest combinations we have verified on Ubuntu 22.04 (kernel version 6.5.0) are: CUDA 12.4, Python 3.10 and PyTorch 2.5.1. Please note:
+  * If you are using other versions, you may need fixes in order to compile successfully, and you may get slightly different performance numbers.
+  * We have not continuously verified the compatibility of vLLM/xformers and the latest packages, so benchmark tests involving them may need fixes to run. 
 
 ```bash
 # install gcc, make and etc.
 sudo apt-get update
 sudo apt install build-essential cmake
+python3 -m pip install --upgrade pip mypy
 
 # install cuda: https://developer.nvidia.com/cuda-12-1-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
 
@@ -56,22 +59,16 @@ pip3 install torch --index-url https://download.pytorch.org/whl/cu124
 # Find your PyTorch installation path by:
 python3 -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'
 
+cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=OFF -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+
+python tests/test_chunk_attn_cuda.py
 
 
 pip install mypy xformers vllm
 
-# Find your PyTorch installation path by:
-python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'
 
-# Linux
-cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=OFF -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build build
 
-# Windows
-cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=OFF -DUSE_CUDA=ON
-cmake --build build --config RelWithDebInfo
-
-python tests/test_chunk_attn_cuda.py
 ```
 
 ### CPU Kernel (BLAS=MKL) [Experimental]

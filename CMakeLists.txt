@@ -60,13 +60,13 @@ add_subdirectory(cpp)
 
 if(${Python3_FOUND} AND ${Python3_Interpreter_FOUND})
     add_custom_target(
-            chunk_attn_whl ALL
-            DEPENDS chunk_attn_c
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/chunk_attn/lib/
-            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:chunk_attn_c>
-            ${CMAKE_SOURCE_DIR}/src/chunk_attn/lib/
-            #    COMMAND "${Python3_EXECUTABLE}" setup.py bdist_wheel ${DIST_PLATFORM}
-            COMMAND "${Python3_EXECUTABLE}" -m pip install -e .
-            COMMAND "stubgen" -p chunk_attn.lib.chunk_attn_c -o ./src
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+        chunk_attn_whl ALL
+        DEPENDS chunk_attn_c
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/chunk_attn/lib/
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:chunk_attn_c>
+        ${CMAKE_SOURCE_DIR}/src/chunk_attn/lib/
+        #    COMMAND "${Python3_EXECUTABLE}" setup.py bdist_wheel ${DIST_PLATFORM}
+        COMMAND "${Python3_EXECUTABLE}" -m pip install -e .
+        COMMAND "${Python3_EXECUTABLE}" -m mypy.stubgen -p chunk_attn.lib.chunk_attn_c -o ./src
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
