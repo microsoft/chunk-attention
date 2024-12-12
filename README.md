@@ -41,7 +41,23 @@ with ModelHost(model, kv_caches, max_batch_size=16) as host:
 
 ### GPU Kernel (BLAS=CUDA)
 
+During the writing of the paper, CUDA 11.8 was used. Subsequently, many packages released new versions. The latest configuration we have verified on Ubuntu 22.04 (kernel version 6.5.0) is: CUDA 12.4 and PyTorch 2.5.1. If you are using other versions, you may need certain changes in order to compile successfully, and you may get slightly different performance numbers.
+
 ```bash
+# install gcc, make and etc.
+sudo apt-get update
+sudo apt install build-essential cmake
+
+# install cuda: https://developer.nvidia.com/cuda-12-1-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
+
+# install pytorch
+pip3 install torch --index-url https://download.pytorch.org/whl/cu124
+
+# Find your PyTorch installation path by:
+python3 -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'
+
+
+
 pip install mypy xformers vllm
 
 # Find your PyTorch installation path by:
@@ -82,7 +98,7 @@ MKL CMake options(default*):
 
 ## Tips
 
-### Using PyTorch Context Manager
+**Using PyTorch Context Manager**
 
 PyTorch has a context manager which can take care of the device transfer automatically. ChunkAttn is compatible with this context manager.
 
@@ -103,13 +119,13 @@ In C++, you can use `c10::DeviceGuard` to switch the device. It is a RAII guard 
 }
 ```
 
-### Add nvcc to PATH if not already
+**Add nvcc to PATH if not already**
 
 ```bash
 export PATH="/usr/local/cuda/bin:$PATH"
 ```
 
-### Change HuggingFace Cache Path
+**Change HuggingFace Cache Path**
 
 ```bash
 export TRANSFORMERS_CACHE=/mnt/huggingface/
