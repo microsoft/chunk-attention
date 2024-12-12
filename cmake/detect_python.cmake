@@ -8,7 +8,7 @@ set(Python_FIND_VIRTUALENV STANDARD)
 
 # detect python executable
 if(PYTHON STREQUAL "")
-    find_package(Python3 COMPONENTS Interpreter Development)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 else()
     find_package(Python3 ${PYTHON} EXACT COMPONENTS Interpreter Development)
 endif()

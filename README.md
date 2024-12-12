@@ -41,19 +41,24 @@ with ModelHost(model, kv_caches, max_batch_size=16) as host:
 
 ### GPU Kernel (BLAS=CUDA)
 
+During the writing of this paper, CUDA 11.8 was used. Since then, many packages have released new versions. The latest configuration we have verified on Ubuntu 22.04 (kernel version 6.5.0) includes CUDA 12.4, PyTorch 2.5.1, and Python 3.10.
+
+Please note: 1) If you are using other versions, you may need to apply fixes to compile successfully, and performance results may vary slightly. 2) We have not continuously verified the compatibility of baseline packages (such as xformers, vllm, etc.) with the above configuration, so benchmark tests involving them may require additional fixes to run.
+
 ```bash
-pip install mypy xformers vllm
+# install gcc, make and etc.
+sudo apt-get update && sudo apt install build-essential cmake
+python3 -m pip install --upgrade pip mypy
 
-# Find your PyTorch installation path by:
-python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'
+# install cuda: https://developer.nvidia.com/cuda-12-4-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=runfile_local
 
-# Linux
+# install pytorch
+pip3 install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+
+# Find your PyTorch installation path to build and install ChunkAttn
+python3 -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'
 cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=OFF -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-
-# Windows
-cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=OFF -DUSE_CUDA=ON
-cmake --build build --config RelWithDebInfo
 
 python tests/test_chunk_attn_cuda.py
 ```
@@ -61,28 +66,21 @@ python tests/test_chunk_attn_cuda.py
 ### CPU Kernel (BLAS=MKL) [Experimental]
 
 ```bash
-# Find your PyTorch installation path by:
-python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'
-
-# Linux
 # sudo apt install intel-oneapi-mkl-devel
+# by default, MKL_LINK=dynamic, MKL_THREADING=parallel, we should change them.
 cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=ON -DUSE_CUDA=OFF -DMKL_LINK=static -DMKL_THREADING=sequential -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 
 # Windows
-cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=ON -DUSE_CUDA=OFF -DMKL_LINK=static -DMKL_THREADING=sequential
-cmake --build build --config RelWithDebInfo
+# cmake -S . -B build -DTORCH=</path/to/python>/site-packages/torch -DUSE_MKL=ON -DUSE_CUDA=OFF -DMKL_LINK=static -DMKL_THREADING=sequential
+# cmake --build build --config RelWithDebInfo
 
 python tests/test_chunk_attn_cpu.py
 ```
 
-MKL CMake options(default*):
-* -DMKL_LINK=[static,dynamic*]
-* -DMKL_THREADING=[sequential,parallel*]
-
 ## Tips
 
-### Using PyTorch Context Manager
+**Using PyTorch Context Manager**
 
 PyTorch has a context manager which can take care of the device transfer automatically. ChunkAttn is compatible with this context manager.
 
@@ -103,13 +101,13 @@ In C++, you can use `c10::DeviceGuard` to switch the device. It is a RAII guard 
 }
 ```
 
-### Add nvcc to PATH if not already
+**Add nvcc to PATH if not already**
 
 ```bash
 export PATH="/usr/local/cuda/bin:$PATH"
 ```
 
-### Change HuggingFace Cache Path
+**Change HuggingFace Cache Path**
 
 ```bash
 export TRANSFORMERS_CACHE=/mnt/huggingface/
@@ -124,6 +122,7 @@ export TRANSFORMERS_CACHE=/mnt/huggingface/
       year={2024},
       eprint={2402.15220},
       archivePrefix={arXiv},
-      primaryClass={cs.LG}
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2402.15220}, 
 }
 ```
