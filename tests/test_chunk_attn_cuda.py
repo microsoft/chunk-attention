@@ -69,7 +69,7 @@ class TestChunkAttnGPU(unittest.TestCase):
             output3 = attn.forward(q=q, partition=2)
             # print(output3[2][1])
             # print(output_ref[2][1])
-            self.assertFalse(torch.allclose(output_ref, output3, atol=1e-3))
+            self.assertTrue(torch.allclose(output_ref, output3, atol=1e-3))
 
 
 if __name__ == "__main__":
