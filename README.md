@@ -1,7 +1,7 @@
 # Chunk Attention
 
 **ChunkAttention: Efficient Self-Attention with Prefix-Aware KV Cache and Two-Phase Partition**  
-Paper: [https://arxiv.org/abs/2205.14135](https://arxiv.org/abs/2402.15220)
+Paper: [https://arxiv.org/abs/2402.15220](https://arxiv.org/abs/2402.15220)
 ![Chunk Attention](chunk-attn.png)
 
 ## Example: Integrate ChunkAttn into Production LLMs
